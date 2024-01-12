@@ -25,7 +25,17 @@ if ($IsWindows -OR $PSEdition -eq 'Desktop') {
     #>
     if ($PSVersionTable.PSVersion.ToString() -match "^7\.[1-9]") {
         Write-Verbose "PowerShell 7.x detected. Using implicit remoting to get the Appx package."
-        $app = Invoke-Command -ScriptBlock { Get-AppxPackage Microsoft.WindowsTerminal* } -ConfigurationName Microsoft.PowerShell -ComputerName localhost
+
+        <# 
+            Jan. 12, 2024 MB
+            Implicit remoting with localhost fails if PSRemoting isn't enabled.  Better alternative is to use the WinPSCompatSession, which supports Get-AppXPackage correctly.
+        #>
+        
+        # we need to initialise the WinPSCompatSession session first, which is done the first time a module is loaded using the -UseWindowsPowershell parameter.
+        Import-Module AppX -UseWindowsPowershell -WarningAction:SilentlyContinue
+
+        # however invoking the newly-imported Get-AppXPackage directly doesn't appear to work unless you do so explicitly within the newly-created session.
+        $app = Invoke-Command -Session (Get-PSSession -name WinPSCompatSession) -ScriptBlock { Get-AppXPackage Microsoft.WindowsTerminal* }
     }
     else {
         $app = Get-AppxPackage Microsoft.WindowsTerminal*
